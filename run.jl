@@ -32,19 +32,19 @@ end
 
 struct RunState
     # current wave of activations
-    x # activation at current time stamp (dim,)
-    xb # same, but inside a residual branch (dim,)
-    xb2 # an additional buffer just for convenience (dim,)
-    hb # buffer for hidden dimension in the ffn (hidden_dim,)
-    hb2 # buffer for hidden dimension in the ffn (hidden_dim,)
-    q # query (dim,)
-    k # key (dim,)
-    v # value (dim,)
-    att # buffer for scores/attention values (seq_len,)
-    logits # output logits
+    x::Array{Float32,1} # activation at current time stamp (dim,)
+    xb::Array{Float32,1} # same, but inside a residual branch (dim,)
+    xb2::Array{Float32,1} # an additional buffer just for convenience (dim,)
+    hb::Array{Float32,1} # buffer for hidden dimension in the ffn (hidden_dim,)
+    hb2::Array{Float32,1} # buffer for hidden dimension in the ffn (hidden_dim,)
+    q::Array{Float32,1} # query (dim,)
+    k::Array{Float32,1} # key (dim,)
+    v::Array{Float32,1} # value (dim,)
+    att::Array{Float32,1} # buffer for scores/attention values (seq_len,)
+    logits::Array{Float32,1} # output logits
     # kv cache
-    key_cache   # (layer, seq_len, dim)
-    value_cache # (layer, seq_len, dim)
+    key_cache::Array{Float32,3}   # (layer, seq_len, dim)
+    value_cache::Array{Float32,3} # (layer, seq_len, dim)
 end
 
 checkpoint = "llama2.jl/out/model.bin"
@@ -101,3 +101,17 @@ weights = TransformerWeights(
     freq_cis_imag
 )
 
+x = zeros(Float32, config.dim)
+xb = zeros(Float32, config.dim)
+xb2 = zeros(Float32, config.dim)
+hb = zeros(Float32, config.hidden_dim)
+hb2 = zeros(Float32, config.hidden_dim)
+q = zeros(Float32, config.dim)
+k = zeros(Float32, config.dim)
+v = zeros(Float32, config.dim)
+att = zeros(Float32, config.seq_len)
+logits = zeros(Float32, config.vocab_size)
+key_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
+value_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
+
+state = RunState(x, xb, xb2, hb, hb2, q, k, v, att, logits, key_cache, value_cache)
