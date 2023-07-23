@@ -1,4 +1,4 @@
-mutable struct Config
+struct Config
     dim::Int32        # transformer dimension
     hidden_dim::Int32 # for ffn layers
     n_layers::Int32   # number of layers
@@ -10,24 +10,24 @@ end
 
 struct TransformerWeights
     # token embedding table
-    token_embedding_table    # (vocab_size, dim)
+    token_embedding_table::Array{Float32,2}    # (vocab_size, dim)
     # weights for rmsnorms
-    rms_att_weight # (layer, dim) rmsnorm weights
-    rms_ffn_weight # (layer, dim)
+    rms_att_weight::Array{Float32,2} # (layer, dim) rmsnorm weights
+    rms_ffn_weight::Array{Float32,2} # (layer, dim)
     # weights for matmuls
-    wq # (layer, dim, dim)
-    wk # (layer, dim, dim)
-    wv # (layer, dim, dim)
-    wo # (layer, dim, dim)
+    wq::Array{Float32,3} # (layer, dim, dim)
+    wk::Array{Float32,3} # (layer, dim, dim)
+    wv::Array{Float32,3} # (layer, dim, dim)
+    wo::Array{Float32,3} # (layer, dim, dim)
     # weights for ffn
-    w1 # (layer, hidden_dim, dim)
-    w2 # (layer, dim, hidden_dim)
-    w3 # (layer, hidden_dim, dim)
+    w1::Array{Float32,3} # (layer, hidden_dim, dim)
+    w2::Array{Float32,3} # (layer, dim, hidden_dim)
+    w3::Array{Float32,3} # (layer, hidden_dim, dim)
     # final rmsnorm
-    rms_final_weight # (dim,)
+    rms_final_weight::Array{Float32,1} # (dim,)
     # freq_cis for RoPE relatively positional embeddings
-    freq_cis_real # (seq_len, dim/2)
-    freq_cis_imag # (seq_len, dim/2)
+    freq_cis_real::Array{Float32,2} # (seq_len, dim/2)
+    freq_cis_imag::Array{Float32,2} # (seq_len, dim/2)
 end
 
 struct RunState
@@ -47,16 +47,15 @@ struct RunState
     value_cache # (layer, seq_len, dim)
 end
 
-checkpoint = "out/model.bin"
+checkpoint = "llama2.jl/out/model.bin"
 
-f = open(checkpoint, "r") 
+## Define Config Header
+f = open(checkpoint, "r")
+config_vector = zeros(Int32, 7)
 read!(f, config_vector)
 config = Config(config_vector...)
-# old 
-# token_embedding_table = reinterpret(Float32,buffer)[fieldcount(Config)+1:(config.vocab_size * config.dim)]
 
-## C original
-# fread(w->token_embedding_table, sizeof(float), p->vocab_size * p->dim, f);
+## Define Transformer Weights
 token_embedding_table = zeros(Float32, config.vocab_size, config.dim)
 rms_att_weight = zeros(Float32, config.n_layers, config.dim)
 wq = zeros(Float32, config.n_layers, config.dim, config.dim)
@@ -69,25 +68,36 @@ w2 = zeros(Float32, config.n_layers, config.hidden_dim, config.dim)
 w3 = zeros(Float32, config.n_layers, config.dim, config.hidden_dim)
 rms_final_weight = zeros(Float32, config.dim)
 head_size::Int32 = config.dim / config.n_heads;
-freq_cis_real = zeros(Float32, config.seq_len, trunc(Int,head_size/2))
-freq_cis_imag = zeros(Float32, config.seq_len, trunc(Int,head_size/2))
+freq_cis_real = zeros(Float32, config.seq_len, trunc(Int, head_size / 2))
+freq_cis_imag = zeros(Float32, config.seq_len, trunc(Int, head_size / 2))
 
+read!(f, token_embedding_table)
+read!(f, rms_att_weight)
+read!(f, wq)
+read!(f, wk)
+read!(f, wv)
+read!(f, wo)
+read!(f, rms_ffn_weight)
+read!(f, w1)
+read!(f, w2)
+read!(f, w3)
+read!(f, rms_final_weight)
+read!(f, freq_cis_real)
+read!(f, freq_cis_imag)
 
-    read!(f, token_embedding_table)
-    read!(f, rms_att_weight)
-    read!(f, wq)
-    read!(f, wk)
-    read!(f, wo)
-    read!(f, rms_ffn_weight)
-    read!(f, w1)
-    read!(f, w2)
-    read!(f, w3)
-    read!(f, rms_final_weight)
-    read!(f, freq_cis_real)
-    read!(f, freq_cis_imag)
-
-
-fieldcount(TransformerWeights)
-
-
+weights = TransformerWeights(
+    token_embedding_table,
+    rms_att_weight,
+    rms_ffn_weight,
+    wq,
+    wk,
+    wv,
+    wo,
+    w1,
+    w2,
+    w3,
+    rms_final_weight,
+    freq_cis_real,
+    freq_cis_imag
+)
 
