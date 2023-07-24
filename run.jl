@@ -215,24 +215,35 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
         # loff = l * p.seq_len * dim
         
         # Update the key and value cache rows
-        key_cache_row = state.key_cache[l,pos,:]
-        value_cache_row = state.value_cache[l,pos,:]
+        key_cache_row = s.key_cache[l,pos,:]
+        value_cache_row = s.value_cache[l,pos,:]
         
         copy!(key_cache_row, s.k, dim);
         copy!(value_cache_row, s.v, dim);
-    end
-    
+
+        ## multihead attention. iterate over all heads
+        ## This part doesn't work, I'm not copying q and k values correctly
+        for h in 1:p.n_heads
+            ## get the query vector for this head
+            q = s.q
+            ## iterate over all timesteps, including the current one
+            for t in 1:pos
+                ## get the key vector for this head and at this timestep
+                k = s.key_cache[l,h,:]
+                ## calculate the attention score as the dot product of q and k
+                score::Float32 = 0.0;
+                for i in 1:head_size
+                    println("q ",q[i])
+                    println("k ",k[i])
+                    score += q[i] * k[i]
+                end
+
+                score /= sqrt(head_size)
+
+                s.att[t] = score
+            end
+        end
+    end    
 end
 
 transformer!(Int32(3),Int32(4),config,state,weights)
-
-
-
-# state.key_cache[1,2,:]
-# state.key_cache[l,pos,dim]
-# # int loff = l * p->seq_len * dim; ## kv cache layer offset for convenience
-# loff = config.n_layers * config.seq_len * config.dim
-# state.k
-# state.key_cache[:,2,:]
-
-# config.seq_len
