@@ -116,13 +116,13 @@ value_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
 
 state = RunState(x, xb, xb2, hb, hb2, q, k, v, att, logits, key_cache, value_cache)
 
-function copy!(a::Vector{Float64}, b::Vector{Float64}, size::Int)
+function copy!(a::Vector{Float32}, b::Vector{Float32}, size::Int32)
     for i in 1:size
         a[i] = b[i]
     end
 end
 
-function accum!(a::Vector{Float64}, b::Vector{Float64}, size::Int)
+function accum!(a::Vector{Float32}, b::Vector{Float32}, size::Int)
     for i in 1:size
         a[i] += b[i]
     end
@@ -161,3 +161,38 @@ function softmax!(x::Vector{Float32}, size::Int32)
     end
 end
 
+function matmul!(xout, x, w, n, d)
+    # Initialize output vector
+    xout = similar(x, (d,))
+    
+    # Perform matrix multiplication
+    for i in 1:d
+        for j in 1:n
+            xout[i] += w[i,j] * x[j]
+        end
+    end
+end
+
+function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::TransformerWeights)
+    ## Convenience variables
+    x::Vector{Float32} = s.x
+    dim::Int32 = p.dim
+    hidden_dim::Int32 = p.hidden_dim
+    head_size::Int32 = trunc(Int32, dim/p.n_heads)
+
+    ## copy the token embedding into x
+    content_row = weights.token_embedding_table[token,:]
+    copy!(x, content_row, dim)
+
+    freq_cis_real_row = w.freq_cis_real + pos * head_size / 2;
+    freq_cis_imag_row = w.freq_cis_imag + pos * head_size / 2;
+    
+    for l in 1:n_layers
+
+    end
+end
+
+weights.rms_att_weight 
+
+weights.wq[1,:,:] * state.xb  
+rmsnorm!(state.xb, x, weights.rms_att_weight + 1*config.dim, config.dim)
