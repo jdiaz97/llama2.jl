@@ -115,3 +115,49 @@ key_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
 value_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
 
 state = RunState(x, xb, xb2, hb, hb2, q, k, v, att, logits, key_cache, value_cache)
+
+function copy!(a::Vector{Float64}, b::Vector{Float64}, size::Int)
+    for i in 1:size
+        a[i] = b[i]
+    end
+end
+
+function accum!(a::Vector{Float64}, b::Vector{Float64}, size::Int)
+    for i in 1:size
+        a[i] += b[i]
+    end
+end
+
+function rmsnorm!(o, x, weight, size)
+    # calculate sum of squares
+    ss = 0.0
+    for j in 1:size
+        ss += x[j]^2
+    end
+    ss /= size
+    ss += 1e-5
+    ss = 1.0 / sqrt(ss)
+    # normalize and scale
+    for j in 1:size
+        o[j] = weight[j] * (ss * x[j])
+    end
+end
+
+function softmax!(x::Vector{Float32}, size::Int32)
+    if size == 1 
+        x[1] = 1.0f
+    end
+    # Find max value (for numerical stability)
+    max_val = maximum(x)
+    
+    # E^x
+    for i in 1:size
+        x[i] = exp(x[i] - max_val)
+    end
+    # Normalize
+    v_sum = sum(x)
+    for i in 1:size
+        x[i] /= v_sum
+    end
+end
+
