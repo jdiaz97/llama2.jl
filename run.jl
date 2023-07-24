@@ -162,8 +162,6 @@ function softmax!(x::Vector{Float32}, size::Int32)
 end
 
 function matmul!(xout, x, w)
-    xout 
-    # Perform matrix multiplication
     xout .= w * x
 end
 
@@ -178,8 +176,8 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
     content_row = weights.token_embedding_table[token,:]
     copy!(x, content_row, dim)
 
-    # freq_cis_real_row = w.freq_cis_real + pos * head_size / 2;
-    # freq_cis_imag_row = w.freq_cis_imag + pos * head_size / 2;
+    freq_cis_real_row = w.freq_cis_real[trunc(Int,pos * head_size / 2),:]
+    freq_cis_imag_row = w.freq_cis_imag[trunc(Int,pos * head_size / 2),:]
     
     for l in 1:config.n_layers
         ##  attention rmsnorm
@@ -190,10 +188,30 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
         matmul!(s.k, s.xb, w.wk[l,:,:])
         matmul!(s.v, s.xb, w.wv[l,:,:])
 
+        ## apply RoPE rotation to the q and k vectors for each head
+
+        for h in 1:config.n_heads
+            ## get the q and k vectors for this head
+            q = s.q
+            k = s.k
+            
+            for i in 1:2:head_size-1
+                println(i)
+                q0 = q[i]
+                q1 = q[i,1]
+                k0 = k[i]
+                k1 = k[i,1]
+                fcr = freq_cis_real_row[trunc(Int,i/2+0.5)];
+                fci = freq_cis_imag_row[trunc(Int,i/2+0.5)];
+                q[i]   = q0 * fcr - q1 * fci;
+                q[i,1] = q0 * fci + q1 * fcr;
+                k[i]   = k0 * fcr - k1 * fci;
+                k[i,1] = k0 * fci + k1 * fcr;
+            end
+        end
     end
     
 end
-
 
 transformer!(Int32(3),Int32(4),config,state,weights)
 
