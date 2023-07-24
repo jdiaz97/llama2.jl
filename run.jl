@@ -161,16 +161,10 @@ function softmax!(x::Vector{Float32}, size::Int32)
     end
 end
 
-function matmul!(xout, x, w, n, d)
-    # Initialize output vector
-    xout = similar(x, (d,))
-    
+function matmul!(xout, x, w)
+    xout 
     # Perform matrix multiplication
-    for i in 1:d
-        for j in 1:n
-            xout[i] += w[i,j] * x[j]
-        end
-    end
+    xout .= w * x
 end
 
 function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::TransformerWeights)
@@ -184,15 +178,22 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
     content_row = weights.token_embedding_table[token,:]
     copy!(x, content_row, dim)
 
-    freq_cis_real_row = w.freq_cis_real + pos * head_size / 2;
-    freq_cis_imag_row = w.freq_cis_imag + pos * head_size / 2;
+    # freq_cis_real_row = w.freq_cis_real + pos * head_size / 2;
+    # freq_cis_imag_row = w.freq_cis_imag + pos * head_size / 2;
     
-    for l in 1:n_layers
+    for l in 1:config.n_layers
+        ##  attention rmsnorm
+        rmsnorm!(s.xb, s.x, w.rms_att_weight[l,:], dim);
+
+        # qkv matmuls for this position
+        matmul!(s.q, s.xb, w.wq[l,:,:])
+        matmul!(s.k, s.xb, w.wk[l,:,:])
+        matmul!(s.v, s.xb, w.wv[l,:,:])
 
     end
+    
 end
 
-weights.rms_att_weight 
 
-weights.wq[1,:,:] * state.xb  
-rmsnorm!(state.xb, x, weights.rms_att_weight + 1*config.dim, config.dim)
+transformer!(Int32(3),Int32(4),config,state,weights)
+
