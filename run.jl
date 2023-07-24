@@ -195,23 +195,33 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
             q = s.q
             k = s.k
             
-            for i in 1:2:head_size-1
+            for i in 1:2:head_size
                 println(i)
                 q0 = q[i]
-                q1 = q[i,1]
+                q1 = q[i+1]
                 k0 = k[i]
-                k1 = k[i,1]
+                k1 = k[i+1]
                 fcr = freq_cis_real_row[trunc(Int,i/2+0.5)];
                 fci = freq_cis_imag_row[trunc(Int,i/2+0.5)];
                 q[i]   = q0 * fcr - q1 * fci;
-                q[i,1] = q0 * fci + q1 * fcr;
+                q[i+1] = q0 * fci + q1 * fcr;
                 k[i]   = k0 * fcr - k1 * fci;
-                k[i,1] = k0 * fci + k1 * fcr;
+                k[i+1] = k0 * fci + k1 * fcr;
             end
         end
+
+        #  save key,value at this time step (pos) to our kv cache
+        ## WHAT IS LOFF guys
+        loff = l * p.seq_len * dim ##  kv cache layer offset for convenience
+        key_cache_row = s.key_cache[loff[pos,dim]]
+        value_cache_row = s.value_cache[loff[pos,dim]]
+        copy!(key_cache_row, s.k, dim);
+        copy!(value_cache_row, s.v, dim);
     end
     
 end
 
 transformer!(Int32(3),Int32(4),config,state,weights)
+
+
 
