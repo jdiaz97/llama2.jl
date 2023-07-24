@@ -47,13 +47,13 @@ struct RunState
     value_cache::Array{Float32,3} # (layer, seq_len, dim)
 end
 
-checkpoint = "llama2.jl/out/model.bin"
+checkpoint::String = "llama2.jl/out/model.bin"
 
 ## Define Config Header
 f = open(checkpoint, "r")
 config_vector = zeros(Int32, 7)
 read!(f, config_vector)
-config = Config(config_vector...)
+global const config::Config = Config(config_vector...)
 
 ## Define Transformer Weights
 token_embedding_table = zeros(Float32, config.vocab_size, config.dim)
@@ -85,7 +85,7 @@ read!(f, rms_final_weight)
 read!(f, freq_cis_real)
 read!(f, freq_cis_imag)
 
-weights = TransformerWeights(
+global const weights::TransformerWeights = TransformerWeights(
     token_embedding_table,
     rms_att_weight,
     rms_ffn_weight,
@@ -114,7 +114,7 @@ logits = zeros(Float32, config.vocab_size)
 key_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
 value_cache = zeros(Float32, config.n_layers, config.seq_len, config.dim)
 
-state = RunState(x, xb, xb2, hb, hb2, q, k, v, att, logits, key_cache, value_cache)
+global const state::RunState = RunState(x, xb, xb2, hb, hb2, q, k, v, att, logits, key_cache, value_cache)
 
 function copy!(a::Vector{Float32}, b::Vector{Float32}, size::Int32)
     for i in 1:size
@@ -196,7 +196,7 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
             k = s.k
             
             for i in 1:2:head_size
-                println(i)
+                # println(i)
                 q0 = q[i]
                 q1 = q[i+1]
                 k0 = k[i]
@@ -210,11 +210,14 @@ function transformer!(token::Int32, pos::Int32,p::Config, s::RunState, w::Transf
             end
         end
 
-        #  save key,value at this time step (pos) to our kv cache
-        ## WHAT IS LOFF guys
-        loff = l * p.seq_len * dim ##  kv cache layer offset for convenience
-        key_cache_row = s.key_cache[loff[pos,dim]]
-        value_cache_row = s.value_cache[loff[pos,dim]]
+        # Calculate the layer offset for convenience
+        # Not necessary?
+        # loff = l * p.seq_len * dim
+        
+        # Update the key and value cache rows
+        key_cache_row = state.key_cache[l,pos,:]
+        value_cache_row = state.value_cache[l,pos,:]
+        
         copy!(key_cache_row, s.k, dim);
         copy!(value_cache_row, s.v, dim);
     end
@@ -225,3 +228,11 @@ transformer!(Int32(3),Int32(4),config,state,weights)
 
 
 
+# state.key_cache[1,2,:]
+# state.key_cache[l,pos,dim]
+# # int loff = l * p->seq_len * dim; ## kv cache layer offset for convenience
+# loff = config.n_layers * config.seq_len * config.dim
+# state.k
+# state.key_cache[:,2,:]
+
+# config.seq_len
